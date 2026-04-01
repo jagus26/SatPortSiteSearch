@@ -55,7 +55,10 @@ describe('searchByName', () => {
     })
 
     expect(fetch).toHaveBeenCalledWith(
-      expect.stringContaining('nominatim.openstreetmap.org/search')
+      expect.stringContaining('nominatim.openstreetmap.org/search'),
+      expect.objectContaining({
+        headers: { 'User-Agent': 'SiteSearch/1.0' },
+      })
     )
   })
 

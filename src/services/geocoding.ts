@@ -28,7 +28,9 @@ export async function searchByName(query: string): Promise<SearchResult[]> {
       limit: '5',
     })
 
-    const response = await fetch(`${NOMINATIM_BASE}?${params}`)
+    const response = await fetch(`${NOMINATIM_BASE}?${params}`, {
+      headers: { 'User-Agent': 'SiteSearch/1.0' },
+    })
 
     if (!response.ok) return []
 
