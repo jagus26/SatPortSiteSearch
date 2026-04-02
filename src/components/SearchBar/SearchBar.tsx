@@ -80,13 +80,24 @@ export function SearchBar({ onSelect }: SearchBarProps) {
 
   return (
     <div className="search-bar">
-      <input
-        type="text"
-        placeholder="Search region name or enter lat, lon..."
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        onKeyDown={handleKeyDown}
-      />
+      <div className="search-input-wrapper">
+        <input
+          type="text"
+          placeholder="Search region name or enter lat, lon..."
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={handleKeyDown}
+        />
+        {query && (
+          <button
+            className="search-clear"
+            onClick={() => { setQuery(''); setResults([]); setIsOpen(false) }}
+            aria-label="Clear search"
+          >
+            &times;
+          </button>
+        )}
+      </div>
       {isOpen && results.length > 0 && (
         <div className="search-results">
           {results.map((result, index) => (
