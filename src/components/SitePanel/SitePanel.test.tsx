@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { SiteDetail } from './SiteDetail'
 import { SiteForm } from './SiteForm'
 import { ScoreBar } from './ScoreBar'
+import { ScoreBreakdown } from './ScoreBreakdown'
 import type { Site, CompositeScore } from '../../types/site'
 
 const mockSite: Site = {
@@ -136,5 +137,63 @@ describe('SiteForm', () => {
     render(<SiteForm onSubmit={() => {}} onClose={onClose} />)
     await user.click(screen.getByLabelText('Close panel'))
     expect(onClose).toHaveBeenCalledOnce()
+  })
+})
+
+describe('ScoreBreakdown', () => {
+  it('renders metric rows with values and sub-scores', () => {
+    const dataJson = { avg_temp_c: 19.63, avg_precipitation_mm: 3.7 }
+    render(<ScoreBreakdown category="environmental" dataJson={dataJson} />)
+    expect(screen.getByText('Temperature')).toBeInTheDocument()
+    expect(screen.getByText('19.6°C')).toBeInTheDocument()
+    expect(screen.getByText('Precipitation')).toBeInTheDocument()
+    expect(screen.getByText('3.7mm/day')).toBeInTheDocument()
+  })
+
+  it('renders explanations', () => {
+    const dataJson = { avg_temp_c: 20.0 }
+    render(<ScoreBreakdown category="environmental" dataJson={dataJson} />)
+    expect(screen.getByText('Ideal range for outdoor equipment')).toBeInTheDocument()
+  })
+
+  it('renders weights as percentages', () => {
+    const dataJson = { avg_temp_c: 20.0 }
+    render(<ScoreBreakdown category="environmental" dataJson={dataJson} />)
+    expect(screen.getByText('30%')).toBeInTheDocument()
+  })
+
+  it('renders nothing for unknown category', () => {
+    const { container } = render(<ScoreBreakdown category="unknown" dataJson={{}} />)
+    expect(container.querySelector('.score-breakdown')).toBeNull()
+  })
+})
+
+describe('ScoreBar expandable', () => {
+  it('expands breakdown on click when details provided', async () => {
+    const user = userEvent.setup()
+    const detail = { raw_score: 84, data_json: { avg_temp_c: 19.63 }, source: 'nasa_power' }
+    render(<ScoreBar label="Environmental" score={84} category="environmental" detail={detail} />)
+
+    expect(screen.queryByText('Temperature')).not.toBeInTheDocument()
+    await user.click(screen.getByText('Environmental'))
+    expect(screen.getByText('Temperature')).toBeInTheDocument()
+  })
+
+  it('collapses breakdown on second click', async () => {
+    const user = userEvent.setup()
+    const detail = { raw_score: 84, data_json: { avg_temp_c: 19.63 }, source: 'nasa_power' }
+    render(<ScoreBar label="Environmental" score={84} category="environmental" detail={detail} />)
+
+    await user.click(screen.getByText('Environmental'))
+    expect(screen.getByText('Temperature')).toBeInTheDocument()
+    await user.click(screen.getByText('Environmental'))
+    expect(screen.queryByText('Temperature')).not.toBeInTheDocument()
+  })
+
+  it('does not expand when no detail provided', async () => {
+    const user = userEvent.setup()
+    render(<ScoreBar label="Environmental" score={84} />)
+    await user.click(screen.getByText('Environmental'))
+    expect(screen.queryByText('Temperature')).not.toBeInTheDocument()
   })
 })
