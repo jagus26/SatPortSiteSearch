@@ -1,5 +1,5 @@
 import uuid
-from typing import Any, Optional
+from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
@@ -18,9 +18,17 @@ async def compute_composite(
     site_scores = result.scalars().all()
 
     if not site_scores:
-        return {"composite": None, "scores": {}}
+        return {"composite": None, "scores": {}, "details": {}}
 
     scores_by_category = {s.category.value: s.raw_score for s in site_scores}
+    details_by_category = {
+        s.category.value: {
+            "raw_score": s.raw_score,
+            "data_json": s.data_json,
+            "source": s.source,
+        }
+        for s in site_scores
+    }
 
     weighted_sum = 0.0
     weight_total = 0.0
@@ -34,4 +42,5 @@ async def compute_composite(
     return {
         "composite": round(composite, 2) if composite is not None else None,
         "scores": scores_by_category,
+        "details": details_by_category,
     }

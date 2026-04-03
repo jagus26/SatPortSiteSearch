@@ -22,7 +22,14 @@ class ScoreRead(BaseModel):
     source: Optional[str]
 
 
+class ScoreDetail(BaseModel):
+    raw_score: int
+    data_json: dict[str, Any]
+    source: Optional[str]
+
+
 class CompositeResponse(BaseModel):
     site_id: uuid.UUID
     composite: Optional[float]
     scores: dict[str, int]
+    details: dict[str, ScoreDetail] = {}

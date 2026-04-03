@@ -130,3 +130,29 @@ async def test_score_site_with_custom_weights(client):
     data = response.json()
     # (100*2 + 50*1) / (2+1) = 83.33
     assert round(data["composite"], 2) == 83.33
+
+
+async def test_scores_include_details(client):
+    create_resp = await client.post("/api/sites", json={
+        "name": "Details Test",
+        "slug": "details-test",
+        "latitude": -23.55,
+        "longitude": -46.63,
+    })
+    site_id = create_resp.json()["id"]
+
+    await client.post(f"/api/sites/{site_id}/scores", json={
+        "category": "connectivity",
+        "raw_score": 85,
+        "data_json": {"ixp_count_100km": 3, "nearest_ixp_km": 12.5},
+        "source": "peeringdb",
+    })
+
+    response = await client.get(f"/api/sites/{site_id}/scores")
+    assert response.status_code == 200
+    data = response.json()
+    assert "details" in data
+    assert "connectivity" in data["details"]
+    assert data["details"]["connectivity"]["raw_score"] == 85
+    assert data["details"]["connectivity"]["data_json"]["ixp_count_100km"] == 3
+    assert data["details"]["connectivity"]["source"] == "peeringdb"
