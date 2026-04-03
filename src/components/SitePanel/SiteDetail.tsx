@@ -5,6 +5,8 @@ interface SiteDetailProps {
   site: Site
   scores: CompositeScore
   onClose: () => void
+  onEnrich: () => Promise<void>
+  isEnriching: boolean
 }
 
 function scoreColor(score: number): string {
@@ -22,7 +24,7 @@ const CATEGORY_LABELS: Record<string, string> = {
   geopolitical: 'Geopolitical',
 }
 
-export function SiteDetail({ site, scores, onClose }: SiteDetailProps) {
+export function SiteDetail({ site, scores, onClose, onEnrich, isEnriching }: SiteDetailProps) {
   const composite = scores.composite !== null ? Math.round(scores.composite) : null
 
   return (
@@ -53,11 +55,22 @@ export function SiteDetail({ site, scores, onClose }: SiteDetailProps) {
         </div>
       )}
 
-      <div className="score-bars">
+      <div className="enrich-section">
+        <button
+          className={`enrich-btn${isEnriching ? ' loading' : ''}`}
+          onClick={onEnrich}
+          disabled={isEnriching}
+        >
+          {isEnriching ? 'Fetching...' : 'Fetch Scores'}
+        </button>
+      </div>
+
+      <div className={`score-bars${isEnriching ? ' enriching' : ''}`}>
         {Object.entries(CATEGORY_LABELS).map(([key, label]) => {
           const value = scores.scores[key]
+          const detail = scores.details?.[key]
           return value !== undefined ? (
-            <ScoreBar key={key} label={label} score={value} />
+            <ScoreBar key={key} label={label} score={value} category={key} detail={detail} />
           ) : null
         })}
       </div>

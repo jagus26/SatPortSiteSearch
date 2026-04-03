@@ -210,6 +210,41 @@
   background: #2563eb;
 }
 
+/* Enrich button */
+.enrich-section {
+  padding: 0 20px 16px;
+}
+
+.enrich-btn {
+  width: 100%;
+  padding: 10px;
+  background: #334155;
+  color: #f1f5f9;
+  border: 1px solid #475569;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.enrich-btn:hover:not(:disabled) {
+  background: #475569;
+}
+
+.enrich-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.enrich-btn.loading {
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+.score-bars.enriching .score-bar-fill {
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
 /* Expandable score bar */
 .score-bar-wrapper {
   border-radius: 6px;

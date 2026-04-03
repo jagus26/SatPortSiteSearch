@@ -106,6 +106,11 @@ function App() {
           createCoords={createCoords}
           onClose={handleClosePanel}
           onCreateSite={handleCreateSite}
+          onScoresUpdated={(siteId, composite) => {
+            if (composite !== null) {
+              setSiteScores((prev) => ({ ...prev, [siteId]: composite }))
+            }
+          }}
         />
       )}
     </div>

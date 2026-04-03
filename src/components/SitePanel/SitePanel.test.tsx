@@ -26,6 +26,10 @@ const mockScores: CompositeScore = {
   site_id: '123e4567-e89b-12d3-a456-426614174000',
   composite: 82.5,
   scores: { connectivity: 90, environmental: 75 },
+  details: {
+    connectivity: { raw_score: 90, data_json: { ixp_count_100km: 3, nearest_ixp_km: 12.5 }, source: 'peeringdb' },
+    environmental: { raw_score: 75, data_json: { avg_temp_c: 22.0, avg_precipitation_mm: 2.0, avg_solar_kwh_m2: 5.0, avg_wind_speed_ms: 3.0 }, source: 'nasa_power' },
+  },
 }
 
 describe('ScoreBar', () => {
@@ -44,18 +48,18 @@ describe('ScoreBar', () => {
 
 describe('SiteDetail', () => {
   it('renders site name and status', () => {
-    render(<SiteDetail site={mockSite} scores={mockScores} onClose={() => {}} />)
+    render(<SiteDetail site={mockSite} scores={mockScores} onClose={() => {}} onEnrich={() => Promise.resolve()} isEnriching={false} />)
     expect(screen.getByText('Sao Paulo Station')).toBeInTheDocument()
     expect(screen.getByText('approved')).toBeInTheDocument()
   })
 
   it('renders composite score', () => {
-    render(<SiteDetail site={mockSite} scores={mockScores} onClose={() => {}} />)
+    render(<SiteDetail site={mockSite} scores={mockScores} onClose={() => {}} onEnrich={() => Promise.resolve()} isEnriching={false} />)
     expect(screen.getByText('83')).toBeInTheDocument()
   })
 
   it('renders category scores', () => {
-    render(<SiteDetail site={mockSite} scores={mockScores} onClose={() => {}} />)
+    render(<SiteDetail site={mockSite} scores={mockScores} onClose={() => {}} onEnrich={() => Promise.resolve()} isEnriching={false} />)
     expect(screen.getByText('Connectivity')).toBeInTheDocument()
     expect(screen.getByText('90')).toBeInTheDocument()
     expect(screen.getByText('Environmental')).toBeInTheDocument()
@@ -63,21 +67,21 @@ describe('SiteDetail', () => {
   })
 
   it('renders coordinates', () => {
-    render(<SiteDetail site={mockSite} scores={mockScores} onClose={() => {}} />)
+    render(<SiteDetail site={mockSite} scores={mockScores} onClose={() => {}} onEnrich={() => Promise.resolve()} isEnriching={false} />)
     expect(screen.getByText(/-23\.5505.*-46\.6333/)).toBeInTheDocument()
   })
 
   it('calls onClose when close button clicked', async () => {
     const user = userEvent.setup()
     const onClose = vi.fn()
-    render(<SiteDetail site={mockSite} scores={mockScores} onClose={onClose} />)
+    render(<SiteDetail site={mockSite} scores={mockScores} onClose={onClose} onEnrich={() => Promise.resolve()} isEnriching={false} />)
     await user.click(screen.getByLabelText('Close panel'))
     expect(onClose).toHaveBeenCalledOnce()
   })
 
   it('shows "No scores yet" when composite is null', () => {
     const noScores: CompositeScore = { site_id: mockSite.id, composite: null, scores: {} }
-    render(<SiteDetail site={mockSite} scores={noScores} onClose={() => {}} />)
+    render(<SiteDetail site={mockSite} scores={noScores} onClose={() => {}} onEnrich={() => Promise.resolve()} isEnriching={false} />)
     expect(screen.getByText('No scores yet')).toBeInTheDocument()
   })
 })
@@ -165,6 +169,51 @@ describe('ScoreBreakdown', () => {
   it('renders nothing for unknown category', () => {
     const { container } = render(<ScoreBreakdown category="unknown" dataJson={{}} />)
     expect(container.querySelector('.score-breakdown')).toBeNull()
+  })
+})
+
+describe('SiteDetail enrichment', () => {
+  it('renders Fetch Scores button', () => {
+    render(
+      <SiteDetail
+        site={mockSite}
+        scores={mockScores}
+        onClose={() => {}}
+        onEnrich={() => Promise.resolve()}
+        isEnriching={false}
+      />
+    )
+    expect(screen.getByText('Fetch Scores')).toBeInTheDocument()
+  })
+
+  it('calls onEnrich when Fetch Scores is clicked', async () => {
+    const user = userEvent.setup()
+    const onEnrich = vi.fn().mockResolvedValue(undefined)
+    render(
+      <SiteDetail
+        site={mockSite}
+        scores={mockScores}
+        onClose={() => {}}
+        onEnrich={onEnrich}
+        isEnriching={false}
+      />
+    )
+    await user.click(screen.getByText('Fetch Scores'))
+    expect(onEnrich).toHaveBeenCalledOnce()
+  })
+
+  it('shows Fetching... when enriching', () => {
+    render(
+      <SiteDetail
+        site={mockSite}
+        scores={mockScores}
+        onClose={() => {}}
+        onEnrich={() => Promise.resolve()}
+        isEnriching={true}
+      />
+    )
+    expect(screen.getByText('Fetching...')).toBeInTheDocument()
+    expect(screen.getByText('Fetching...').closest('button')).toBeDisabled()
   })
 })
 
