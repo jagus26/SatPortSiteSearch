@@ -1,3 +1,4 @@
+import asyncio
 import uuid
 from typing import Any
 
@@ -5,6 +6,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
 from app.models.score import SiteScore
+from app.models.site import Site
+from app.adapters.nasa_power import NasaPowerAdapter
+from app.adapters.peeringdb import PeeringDbAdapter
 
 
 async def compute_composite(
@@ -44,3 +48,54 @@ async def compute_composite(
         "scores": scores_by_category,
         "details": details_by_category,
     }
+
+
+ADAPTERS = [NasaPowerAdapter(), PeeringDbAdapter()]
+
+
+async def enrich_site(
+    session: AsyncSession,
+    site_id: uuid.UUID,
+    weights: dict[str, float],
+) -> dict[str, Any] | None:
+    site = await session.get(Site, site_id)
+    if not site:
+        return None
+
+    # Run all adapters concurrently
+    results = await asyncio.gather(
+        *[adapter.fetch(latitude=site.latitude, longitude=site.longitude) for adapter in ADAPTERS],
+        return_exceptions=True,
+    )
+
+    for adapter, result in zip(ADAPTERS, results):
+        if isinstance(result, Exception):
+            continue
+
+        # Upsert: find existing score for this site+category, update or create
+        existing = await session.execute(
+            select(SiteScore).where(
+                SiteScore.site_id == site_id,
+                SiteScore.category == adapter.category,
+            )
+        )
+        existing_score = existing.scalars().first()
+
+        if existing_score:
+            existing_score.raw_score = result.raw_score
+            existing_score.data_json = result.data_json
+            existing_score.source = result.source
+            session.add(existing_score)
+        else:
+            new_score = SiteScore(
+                site_id=site_id,
+                category=adapter.category,
+                raw_score=result.raw_score,
+                data_json=result.data_json,
+                source=result.source,
+            )
+            session.add(new_score)
+
+    await session.commit()
+
+    return await compute_composite(session, site_id, weights)

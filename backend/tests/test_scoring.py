@@ -156,3 +156,107 @@ async def test_scores_include_details(client):
     assert data["details"]["connectivity"]["raw_score"] == 85
     assert data["details"]["connectivity"]["data_json"]["ixp_count_100km"] == 3
     assert data["details"]["connectivity"]["source"] == "peeringdb"
+
+
+async def test_enrich_site(client, monkeypatch):
+    import httpx
+    from app.adapters.nasa_power import NasaPowerAdapter
+    from app.adapters.peeringdb import PeeringDbAdapter
+
+    create_resp = await client.post("/api/sites", json={
+        "name": "Enrich Test",
+        "slug": "enrich-test",
+        "latitude": -23.55,
+        "longitude": -46.63,
+    })
+    site_id = create_resp.json()["id"]
+
+    # Mock NASA POWER API
+    nasa_response = {
+        "properties": {
+            "parameter": {
+                "T2M": {"2023": 20.0},
+                "PRECTOTCORR": {"2023": 2.0},
+                "ALLSKY_SFC_SW_DWN": {"2023": 5.0},
+                "WS10M": {"2023": 3.0},
+            }
+        }
+    }
+
+    # Mock PeeringDB API
+    peeringdb_response = {
+        "data": [
+            {"id": 1, "name": "Test IX", "latitude": -23.55, "longitude": -46.63},
+        ]
+    }
+
+    async def mock_get(self, url, **kwargs):
+        if "power.larc.nasa.gov" in str(url):
+            return httpx.Response(200, json=nasa_response, request=httpx.Request("GET", url))
+        else:
+            return httpx.Response(200, json=peeringdb_response, request=httpx.Request("GET", url))
+
+    monkeypatch.setattr(httpx.AsyncClient, "get", mock_get)
+
+    response = await client.post(f"/api/sites/{site_id}/scores/enrich")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["composite"] is not None
+    assert "environmental" in data["scores"]
+    assert "connectivity" in data["scores"]
+    assert "environmental" in data["details"]
+    assert "connectivity" in data["details"]
+
+
+async def test_enrich_site_upserts(client, monkeypatch):
+    import httpx
+
+    create_resp = await client.post("/api/sites", json={
+        "name": "Upsert Test",
+        "slug": "upsert-test",
+        "latitude": 0.0,
+        "longitude": 0.0,
+    })
+    site_id = create_resp.json()["id"]
+
+    # Add an existing score
+    await client.post(f"/api/sites/{site_id}/scores", json={
+        "category": "environmental",
+        "raw_score": 50,
+        "source": "old",
+    })
+
+    # Mock adapters
+    nasa_response = {
+        "properties": {
+            "parameter": {
+                "T2M": {"2023": 20.0},
+                "PRECTOTCORR": {"2023": 2.0},
+                "ALLSKY_SFC_SW_DWN": {"2023": 5.0},
+                "WS10M": {"2023": 3.0},
+            }
+        }
+    }
+    peeringdb_response = {"data": []}
+
+    async def mock_get(self, url, **kwargs):
+        if "power.larc.nasa.gov" in str(url):
+            return httpx.Response(200, json=nasa_response, request=httpx.Request("GET", url))
+        else:
+            return httpx.Response(200, json=peeringdb_response, request=httpx.Request("GET", url))
+
+    monkeypatch.setattr(httpx.AsyncClient, "get", mock_get)
+
+    response = await client.post(f"/api/sites/{site_id}/scores/enrich")
+    assert response.status_code == 200
+    data = response.json()
+    # Environmental score should be updated (not 50 anymore)
+    assert data["details"]["environmental"]["source"] == "nasa_power"
+    assert data["details"]["environmental"]["raw_score"] != 50
+
+
+async def test_enrich_nonexistent_site(client):
+    import uuid
+    fake_id = uuid.uuid4()
+    response = await client.post(f"/api/sites/{fake_id}/scores/enrich")
+    assert response.status_code == 404
