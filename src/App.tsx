@@ -39,7 +39,7 @@ function App() {
   return (
     <div className="app">
       <SearchBar onSelect={handleSearchSelect} />
-      <MapView viewState={viewState} onViewStateChange={setViewState} />
+      <MapView viewState={viewState} onViewStateChange={setViewState} sites={[]} />
     </div>
   )
 }
