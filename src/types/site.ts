@@ -24,8 +24,15 @@ export interface SiteCreate {
   notes?: string
 }
 
+export interface ScoreDetail {
+  raw_score: number
+  data_json: Record<string, number | string | null>
+  source: string | null
+}
+
 export interface CompositeScore {
   site_id: string
   composite: number | null
   scores: Record<string, number>
+  details: Record<string, ScoreDetail>
 }
