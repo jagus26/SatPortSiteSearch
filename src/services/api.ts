@@ -15,10 +15,10 @@ export async function fetchSites(): Promise<Site[]> {
 export async function fetchSiteScores(siteId: string): Promise<CompositeScore> {
   try {
     const response = await fetch(`${API_BASE}/api/sites/${siteId}/scores`)
-    if (!response.ok) return { site_id: siteId, composite: null, scores: {} }
+    if (!response.ok) return { site_id: siteId, composite: null, scores: {}, details: {} }
     return await response.json()
   } catch {
-    return { site_id: siteId, composite: null, scores: {} }
+    return { site_id: siteId, composite: null, scores: {}, details: {} }
   }
 }
 
@@ -30,6 +30,16 @@ export async function createSite(data: SiteCreate): Promise<Site> {
   })
   if (!response.ok) {
     throw new Error('Failed to create site')
+  }
+  return await response.json()
+}
+
+export async function enrichSite(siteId: string): Promise<CompositeScore> {
+  const response = await fetch(`${API_BASE}/api/sites/${siteId}/scores/enrich`, {
+    method: 'POST',
+  })
+  if (!response.ok) {
+    throw new Error('Failed to enrich site')
   }
   return await response.json()
 }

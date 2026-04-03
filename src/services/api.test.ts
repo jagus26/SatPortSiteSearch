@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { fetchSites, fetchSiteScores, createSite } from './api'
+import { fetchSites, fetchSiteScores, createSite, enrichSite } from './api'
 import type { Site, CompositeScore } from '../types/site'
 
 const mockSite: Site = {
@@ -21,6 +21,10 @@ const mockScores: CompositeScore = {
   site_id: '123e4567-e89b-12d3-a456-426614174000',
   composite: 82.5,
   scores: { connectivity: 90, environmental: 75 },
+  details: {
+    connectivity: { raw_score: 90, data_json: { ixp_count_100km: 3 }, source: 'peeringdb' },
+    environmental: { raw_score: 75, data_json: { avg_temp_c: 22.0 }, source: 'nasa_power' },
+  },
 }
 
 beforeEach(() => {
@@ -65,7 +69,7 @@ describe('fetchSiteScores', () => {
     vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('Network error'))
 
     const scores = await fetchSiteScores('fake-id')
-    expect(scores).toEqual({ site_id: 'fake-id', composite: null, scores: {} })
+    expect(scores).toEqual({ site_id: 'fake-id', composite: null, scores: {}, details: {} })
   })
 })
 
@@ -100,5 +104,39 @@ describe('createSite', () => {
 
     await expect(createSite({ name: '', slug: '', latitude: 0, longitude: 0 }))
       .rejects.toThrow('Failed to create site')
+  })
+})
+
+describe('enrichSite', () => {
+  it('sends POST request and returns enriched scores', async () => {
+    const mockEnriched = {
+      site_id: '123e4567-e89b-12d3-a456-426614174000',
+      composite: 84.5,
+      scores: { connectivity: 85, environmental: 84 },
+      details: {
+        connectivity: { raw_score: 85, data_json: { ixp_count_100km: 3 }, source: 'peeringdb' },
+        environmental: { raw_score: 84, data_json: { avg_temp_c: 19.63 }, source: 'nasa_power' },
+      },
+    }
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: true,
+      json: async () => mockEnriched,
+    } as Response)
+
+    const result = await enrichSite('123e4567-e89b-12d3-a456-426614174000')
+    expect(result).toEqual(mockEnriched)
+    expect(fetch).toHaveBeenCalledWith(
+      'http://localhost:8000/api/sites/123e4567-e89b-12d3-a456-426614174000/scores/enrich',
+      { method: 'POST' }
+    )
+  })
+
+  it('throws on error response', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: false,
+      status: 500,
+    } as Response)
+
+    await expect(enrichSite('fake-id')).rejects.toThrow('Failed to enrich site')
   })
 })
