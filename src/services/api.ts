@@ -1,0 +1,35 @@
+import type { Site, SiteCreate, CompositeScore } from '../types/site'
+
+const API_BASE = 'http://localhost:8000'
+
+export async function fetchSites(): Promise<Site[]> {
+  try {
+    const response = await fetch(`${API_BASE}/api/sites`)
+    if (!response.ok) return []
+    return await response.json()
+  } catch {
+    return []
+  }
+}
+
+export async function fetchSiteScores(siteId: string): Promise<CompositeScore> {
+  try {
+    const response = await fetch(`${API_BASE}/api/sites/${siteId}/scores`)
+    if (!response.ok) return { site_id: siteId, composite: null, scores: {} }
+    return await response.json()
+  } catch {
+    return { site_id: siteId, composite: null, scores: {} }
+  }
+}
+
+export async function createSite(data: SiteCreate): Promise<Site> {
+  const response = await fetch(`${API_BASE}/api/sites`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  })
+  if (!response.ok) {
+    throw new Error('Failed to create site')
+  }
+  return await response.json()
+}
